@@ -383,3 +383,8 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	/// Get an epoch change signal by block hash.
 	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>>;
 }
+
+/// Trait to be used during block import
+pub trait ImportingBlockChainClient: Nonce + Balance + ChainInfo + BlockInfo + ReopenBlock + PrepareOpenBlock {
+	fn as_block_info(&self) -> &BlockInfo;
+}

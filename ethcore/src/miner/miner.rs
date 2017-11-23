@@ -27,7 +27,7 @@ use timer::PerfTimer;
 use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
 use state::State;
-use client::{MiningBlockChainClient, BlockId, TransactionId};
+use client::{MiningBlockChainClient, ImportingBlockChainClient, BlockId, TransactionId, Nonce, Balance, BlockInfo, ChainInfo, ReopenBlock, PrepareOpenBlock};
 use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, IsBlock, Block};
@@ -605,7 +605,7 @@ impl Miner {
 		}
 	}
 
-	fn update_gas_limit(&self, client: &MiningBlockChainClient) {
+	fn update_gas_limit(&self, client: &BlockInfo) {
 		let gas_limit = client.best_block_header().gas_limit();
 		let mut queue = self.transaction_queue.write();
 		queue.set_gas_limit(gas_limit);
@@ -1138,7 +1138,11 @@ impl MinerService for Miner {
 		})
 	}
 
-	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
+	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
+		where C: Nonce + Balance + ChainInfo + BlockInfo + ReopenBlock + PrepareOpenBlock
+	{
+
+	// fn chain_new_blocks<C: ImportingBlockChainClient>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		trace!(target: "miner", "chain_new_blocks");
 
 		// 1. We ignore blocks that were `imported` unless resealing on new uncles is enabled.
@@ -1146,7 +1150,7 @@ impl MinerService for Miner {
 		//    are in those blocks
 
 		// First update gas limit in transaction queue
-		self.update_gas_limit(chain);
+		self.update_gas_limit(chain); // .as_block_info()
 
 		// Update minimal gas price
 		self.recalibrate_minimal_gas_price();

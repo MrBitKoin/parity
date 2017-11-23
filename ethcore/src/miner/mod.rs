@@ -65,7 +65,7 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::Address;
 use bytes::Bytes;
-use client::{MiningBlockChainClient};
+use client::{MiningBlockChainClient, ImportingBlockChainClient, Nonce, Balance, BlockInfo, ChainInfo, ReopenBlock, PrepareOpenBlock};
 use block::ClosedBlock;
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
@@ -136,7 +136,8 @@ pub trait MinerService : Send + Sync {
 	fn clear_and_reset(&self, chain: &MiningBlockChainClient);
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
+	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
+		where C: Nonce + Balance + ChainInfo + BlockInfo + ReopenBlock + PrepareOpenBlock;
 
 	/// PoW chain - can produce work package
 	fn can_produce_work_package(&self) -> bool;

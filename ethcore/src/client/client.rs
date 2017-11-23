@@ -42,7 +42,7 @@ use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, Balance, ChainInfo, BlockInfo,
-	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	BlockChainClient, MiningBlockChainClient, ImportingBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo, ProvingBlockChainClient, ReopenBlock, PrepareOpenBlock
 };
 use encoded;
@@ -302,6 +302,44 @@ impl Importer {
 
 		db.flush().expect("DB flush failed.");
 		Ok(hash)
+	}
+
+	/// Attempt to get a copy of a specific block's final state.
+	///
+	/// This will not fail if given BlockId::Latest.
+	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
+	/// is unknown.
+	pub fn state_at(&self, id: BlockId, chain: &BlockChain, state: State<StateDB>) -> Option<State<StateDB>> {
+		// fast path for latest state.
+		match id.clone() {
+			BlockId::Pending => return self.miner.pending_state(chain.best_block_number()).or_else(|| Some(state)),
+			BlockId::Latest => return Some(state),
+			_ => {},
+		}
+
+		let block_number = match self.block_number(id) {
+			Some(num) => num,
+			None => return None,
+		};
+
+		self.block_header(id).and_then(|header| {
+			let db = self.state_db.lock().boxed_clone();
+
+			// early exit for pruned blocks
+			if db.is_pruned() && self.pruning_info().earliest_state > block_number {
+				return None;
+			}
+
+			let root = header.state_root();
+			State::from_existing(db, root, self.engine.account_start_nonce(block_number), self.factories.clone()).ok()
+		})
+	}
+}
+
+impl Nonce for Importer {
+	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
+		//self.state_at(id).and_then(|s| s.nonce(address).ok())
+		None
 	}
 }
 
@@ -1992,6 +2030,10 @@ impl PrepareOpenBlock for Client {
 
 		open_block
 	}
+}
+
+impl ImportingBlockChainClient for Client {
+	fn as_block_info(&self) -> &BlockInfo { self }
 }
 
 impl MiningBlockChainClient for Client {
