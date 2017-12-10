@@ -22,9 +22,12 @@ use super::ValidatorSet;
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct AuthorityRoundParams {
-	/// Block duration.
+	/// Block duration, in seconds.
+	///
+	/// Deliberately typed as u8 as too high of a value leads
+	/// to slow block issuance.
 	#[serde(rename="stepDuration")]
-	pub step_duration: Uint,
+	pub step_duration: u8,
 	/// Valid authorities
 	pub validators: ValidatorSet,
 	/// Starting step. Determined automatically if not specified.
