@@ -184,7 +184,6 @@ pub struct AttachedProtocol {
 pub struct AttachedProtocol;
 
 impl AttachedProtocol {
-	#[cfg(feature = "ipc")]
 	fn register(&self, network: &NetworkService) {
 		let res = network.register_protocol(
 			self.handler.clone(),
@@ -194,12 +193,9 @@ impl AttachedProtocol {
 		);
 
 		if let Err(e) = res {
-			warn!(target: "sync","Error attaching protocol {:?}", protocol_id);
+			warn!(target: "sync","Error attaching protocol {:?}", self.protocol_id);
 		}
 	}
-
-	#[cfg(not(feature = "ipc"))]
-	fn register(&self, _network: &NetworkService) {}
 }
 
 /// EthSync initialization parameters.
